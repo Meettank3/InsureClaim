@@ -47,6 +47,13 @@ export const useBlockchain = () => {
     setError(null);
   };
 
+  const toggleUserRole = () => {
+    if (user) {
+      const updatedUser = { ...user, isOwner: !user.isOwner };
+      setUser(updatedUser);
+      web3Service.setCurrentUser(updatedUser);
+    }
+  };
   useEffect(() => {
     // Check if already connected
     const currentUser = web3Service.getCurrentUser();
@@ -63,7 +70,8 @@ export const useBlockchain = () => {
     error,
     connectWallet,
     updateBalance,
-    disconnect
+    disconnect,
+    toggleUserRole
   };
 };
 

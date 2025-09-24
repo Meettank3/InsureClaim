@@ -1,11 +1,11 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Shield, User, Settings, LogOut, Wallet } from 'lucide-react';
+import { Shield, User, Settings, LogOut, Wallet, ToggleLeft, ToggleRight } from 'lucide-react';
 import { useBlockchain } from '../../hooks/useBlockchain';
 
 const Header: React.FC = () => {
   const location = useLocation();
-  const { user, connected, connectWallet, disconnect, loading, error } = useBlockchain();
+  const { user, connected, connectWallet, disconnect, loading, error, toggleUserRole } = useBlockchain();
 
   const isActive = (path: string) => location.pathname === path;
 
@@ -48,6 +48,25 @@ const Header: React.FC = () => {
 
           {/* User Info */}
           <div className="flex items-center space-x-4">
+            {/* Role Toggle for Demo */}
+            {connected && user && (
+              <div className="flex items-center space-x-2 px-3 py-1 bg-gray-100 rounded-lg">
+                <span className="text-sm text-gray-600">User</span>
+                <button
+                  onClick={toggleUserRole}
+                  className="flex items-center text-blue-600 hover:text-blue-700 transition-colors duration-200"
+                  title={`Switch to ${user.isOwner ? 'User' : 'Admin'} mode`}
+                >
+                  {user.isOwner ? (
+                    <ToggleRight className="h-5 w-5" />
+                  ) : (
+                    <ToggleLeft className="h-5 w-5" />
+                  )}
+                </button>
+                <span className="text-sm text-gray-600">Admin</span>
+              </div>
+            )}
+            
             {!connected ? (
               <button
                 onClick={connectWallet}
@@ -61,7 +80,13 @@ const Header: React.FC = () => {
               <>
                 <div className="hidden md:block text-right">
                   <p className="text-sm font-medium text-gray-900">
-                    {user.isOwner ? 'Admin' : 'User'}
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                      user.isOwner 
+                        ? 'bg-purple-100 text-purple-800' 
+                        : 'bg-blue-100 text-blue-800'
+                    }`}>
+                      {user.isOwner ? 'Admin Mode' : 'User Mode'}
+                    </span>
                   </p>
                   <p className="text-sm text-gray-500">
                     {user.address.slice(0, 6)}...{user.address.slice(-4)}

@@ -100,6 +100,10 @@ export class Web3Service {
     return this.currentUser;
   }
 
+  setCurrentUser(user: User): void {
+    this.currentUser = user;
+  }
+
   async updateUserBalance(): Promise<string> {
     if (!this.provider || !this.currentUser) {
       throw new Error('Wallet not connected');
