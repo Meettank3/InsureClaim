@@ -52,6 +52,10 @@ export const useBlockchain = () => {
       const updatedUser = { ...user, isOwner: !user.isOwner };
       setUser(updatedUser);
       web3Service.setCurrentUser(updatedUser);
+      // Force refresh of user policies when role changes
+      if (window.location.pathname === '/dashboard') {
+        window.location.reload();
+      }
     }
   };
   useEffect(() => {
@@ -60,6 +64,8 @@ export const useBlockchain = () => {
     if (currentUser) {
       setUser(currentUser);
       setConnected(true);
+      // Ensure user is in mock data store
+      mockDataStore.setUser(currentUser.address, currentUser);
     }
   }, []);
 

@@ -64,6 +64,9 @@ export class Web3Service {
         balance: balanceInEth
       };
 
+      // Store user in mock data store
+      mockDataStore.setUser(address, this.currentUser);
+
       // Listen for account changes
       window.ethereum.on('accountsChanged', this.handleAccountsChanged.bind(this));
       window.ethereum.on('chainChanged', this.handleChainChanged.bind(this));
@@ -103,6 +106,10 @@ export class Web3Service {
 
   setCurrentUser(user: User): void {
     this.currentUser = user;
+    // Update user in mock data store when role changes
+    if (user) {
+      mockDataStore.setUser(user.address, user);
+    }
   }
 
   async updateUserBalance(): Promise<string> {

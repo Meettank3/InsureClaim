@@ -17,7 +17,7 @@ const DashboardPage: React.FC = () => {
       fetchUserClaims();
       fetchUserPolicies();
     }
-  }, [connected]);
+  }, [connected, fetchUserClaims, fetchUserPolicies]);
 
   const handleClaimSubmitSuccess = () => {
     fetchUserClaims();
