@@ -28,6 +28,14 @@ const AdminPage: React.FC = () => {
     );
   }
 
+  const totalPoliciesSold = allUserPolicies.reduce((total, userPolicies) => 
+    total + userPolicies.policies.length, 0
+  );
+
+  const totalRevenue = allUserPolicies.reduce((total, userPolicies) => 
+    total + userPolicies.policies.reduce((sum, policy) => sum + parseFloat(policy.premium), 0), 0
+  );
+
   const stats = [
     { 
       name: 'Total Policies', 
@@ -71,14 +79,6 @@ const AdminPage: React.FC = () => {
     fetchPolicies();
     fetchAllUserPolicies();
   };
-
-  const totalPoliciesSold = allUserPolicies.reduce((total, userPolicies) => 
-    total + userPolicies.policies.length, 0
-  );
-
-  const totalRevenue = allUserPolicies.reduce((total, userPolicies) => 
-    total + userPolicies.policies.reduce((sum, policy) => sum + parseFloat(policy.premium), 0), 0
-  );
   return (
     <div className="space-y-8">
       {/* Header */}
