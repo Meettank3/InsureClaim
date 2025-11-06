@@ -84,41 +84,7 @@ export const usePolicies = () => {
     setLoading(true);
     setError(null);
     try {
-      // For now, use mock data since we don't have a deployed contract
-      // In production, this would call: await web3Service.getAllPolicies();
-      const mockData = [
-        {
-          policyId: 1,
-          name: "Basic Health Insurance",
-          description: "Comprehensive health coverage for individuals and families",
-          premium: "0.1",
-          coverageAmount: "5.0",
-          duration: 365,
-          active: true,
-          createdAt: Date.now() - 86400000 * 30
-        },
-        {
-          policyId: 2,
-          name: "Auto Insurance Premium",
-          description: "Complete vehicle protection with collision and comprehensive coverage",
-          premium: "0.15",
-          coverageAmount: "10.0",
-          duration: 365,
-          active: true,
-          createdAt: Date.now() - 86400000 * 20
-        },
-        {
-          policyId: 3,
-          name: "Home Protection Plan",
-          description: "Property insurance covering fire, theft, and natural disasters",
-          premium: "0.2",
-          coverageAmount: "15.0",
-          duration: 365,
-          active: true,
-          createdAt: Date.now() - 86400000 * 10
-        }
-      ];
-      const data = mockData;
+      const data = web3Service.getAllPoliciesFromStore();
       setPolicies(data);
     } catch (error) {
       console.error('Failed to fetch policies:', error);
@@ -199,8 +165,12 @@ export const useClaims = () => {
     setLoading(true);
     setError(null);
     try {
-      // Mock data for now - in production, use web3Service.getUserClaims()
-      const data: Claim[] = [];
+      const currentUser = web3Service.getCurrentUser();
+      if (!currentUser) {
+        setUserClaims([]);
+        return;
+      }
+      const data = web3Service.getUserClaimsFromStore(currentUser.address);
       setUserClaims(data);
     } catch (error) {
       console.error('Failed to fetch user claims:', error);
@@ -214,8 +184,7 @@ export const useClaims = () => {
     setLoading(true);
     setError(null);
     try {
-      // Mock data for now - in production, use web3Service.getAllClaims()
-      const data: Claim[] = [];
+      const data = web3Service.getAllClaimsFromStore();
       setClaims(data);
     } catch (error) {
       console.error('Failed to fetch all claims:', error);
@@ -288,8 +257,12 @@ export const useUserPolicies = () => {
     setLoading(true);
     setError(null);
     try {
-      // Mock data for now - in production, use web3Service.getUserPolicies()
-      const data: UserPolicy[] = [];
+      const currentUser = web3Service.getCurrentUser();
+      if (!currentUser) {
+        setUserPolicies([]);
+        return;
+      }
+      const data = web3Service.getUserPoliciesFromStore(currentUser.address);
       setUserPolicies(data);
     } catch (error) {
       console.error('Failed to fetch user policies:', error);
@@ -308,5 +281,36 @@ export const useUserPolicies = () => {
     loading,
     error,
     fetchUserPolicies
+  };
+};
+
+export const useAdminData = () => {
+  const [allUserPolicies, setAllUserPolicies] = useState<{ userAddress: string; policies: UserPolicy[] }[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchAllUserPolicies = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = web3Service.getAllUserPoliciesFromStore();
+      setAllUserPolicies(data);
+    } catch (error) {
+      console.error('Failed to fetch all user policies:', error);
+      setError(error instanceof Error ? error.message : 'Failed to fetch user policies');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchAllUserPolicies();
+  }, []);
+
+  return {
+    allUserPolicies,
+    loading,
+    error,
+    fetchAllUserPolicies,
   };
 };

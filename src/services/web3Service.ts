@@ -1,5 +1,6 @@
 import { ethers } from 'ethers';
 import { Policy, Claim, UserPolicy, User } from '../types';
+import { mockDataStore } from './mockData';
 
 // Contract ABI (simplified for demo - in production, import from compiled contract)
 const INSURANCE_CONTRACT_ABI = [
@@ -117,29 +118,36 @@ export class Web3Service {
 
   // Policy Management
   async buyPolicy(policyId: number, premiumInEth: string): Promise<{ success: boolean; txHash?: string }> {
-    if (!this.contract || !this.signer) {
+    if (!this.signer || !this.currentUser) {
       throw new Error('Wallet not connected');
     }
 
     try {
-      const premiumInWei = ethers.parseEther(premiumInEth);
+      // Simulate transaction delay
+      await new Promise(resolve => setTimeout(resolve, 2000));
       
-      // Estimate gas
-      const gasEstimate = await this.contract.buyPolicy.estimateGas(policyId, { value: premiumInWei });
+      // Check if user has enough balance
+      const userBalance = parseFloat(this.currentUser.balance);
+      const premium = parseFloat(premiumInEth);
       
-      // Send transaction
-      const tx = await this.contract.buyPolicy(policyId, { 
-        value: premiumInWei,
-        gasLimit: gasEstimate * 120n / 100n // Add 20% buffer
-      });
-
-      // Wait for confirmation
-      const receipt = await tx.wait();
+      if (userBalance < premium) {
+        throw new Error('Insufficient balance');
+      }
+      
+      // Purchase policy in mock data store
+      const userPolicy = mockDataStore.purchasePolicy(this.currentUser.address, policyId);
+      if (!userPolicy) {
+        throw new Error('Policy not available or already owned');
+      }
       
       // Update user balance
-      await this.updateUserBalance();
-
-      return { success: true, txHash: receipt.hash };
+      this.currentUser.balance = (userBalance - premium).toFixed(4);
+      mockDataStore.setUser(this.currentUser.address, this.currentUser);
+      
+      // Generate mock transaction hash
+      const mockTxHash = '0x' + Math.random().toString(16).substr(2, 64);
+      
+      return { success: true, txHash: mockTxHash };
     } catch (error: any) {
       console.error('Failed to buy policy:', error);
       throw new Error(error.reason || error.message || 'Transaction failed');
@@ -152,34 +160,40 @@ export class Web3Service {
     description: string, 
     requestedAmountInEth: string
   ): Promise<{ success: boolean; txHash?: string }> {
-    if (!this.contract || !this.signer) {
+    if (!this.signer || !this.currentUser) {
       throw new Error('Wallet not connected');
     }
 
     try {
-      const requestedAmountInWei = ethers.parseEther(requestedAmountInEth);
+      // Simulate transaction delay
+      await new Promise(resolve => setTimeout(resolve, 1500));
       
-      // Estimate gas
-      const gasEstimate = await this.contract.submitClaim.estimateGas(
-        policyId, 
-        reason, 
-        description, 
-        requestedAmountInWei
+      // Check if user owns the policy
+      const userPolicies = mockDataStore.getUserPolicies(this.currentUser.address);
+      const ownedPolicy = userPolicies.find(p => p.policyId === policyId);
+      
+      if (!ownedPolicy) {
+        throw new Error('You do not own this policy');
+      }
+      
+      // Check if requested amount is within coverage
+      if (parseFloat(requestedAmountInEth) > parseFloat(ownedPolicy.coverageAmount)) {
+        throw new Error('Requested amount exceeds policy coverage');
+      }
+      
+      // Submit claim
+      mockDataStore.submitClaim(
+        this.currentUser.address,
+        policyId,
+        reason,
+        description,
+        requestedAmountInEth
       );
       
-      // Send transaction
-      const tx = await this.contract.submitClaim(
-        policyId, 
-        reason, 
-        description, 
-        requestedAmountInWei,
-        { gasLimit: gasEstimate * 120n / 100n }
-      );
-
-      // Wait for confirmation
-      const receipt = await tx.wait();
-
-      return { success: true, txHash: receipt.hash };
+      // Generate mock transaction hash
+      const mockTxHash = '0x' + Math.random().toString(16).substr(2, 64);
+      
+      return { success: true, txHash: mockTxHash };
     } catch (error: any) {
       console.error('Failed to submit claim:', error);
       throw new Error(error.reason || error.message || 'Transaction failed');
@@ -194,37 +208,28 @@ export class Web3Service {
     coverageAmountInEth: string,
     duration: number
   ): Promise<{ success: boolean; txHash?: string }> {
-    if (!this.contract || !this.signer || !this.currentUser?.isOwner) {
+    if (!this.signer || !this.currentUser?.isOwner) {
       throw new Error('Admin access required');
     }
 
     try {
-      const premiumInWei = ethers.parseEther(premiumInEth);
-      const coverageInWei = ethers.parseEther(coverageAmountInEth);
+      // Simulate transaction delay
+      await new Promise(resolve => setTimeout(resolve, 2000));
       
-      // Estimate gas
-      const gasEstimate = await this.contract.addPolicy.estimateGas(
+      // Add policy to mock data store
+      mockDataStore.addPolicy({
         name,
         description,
-        premiumInWei,
-        coverageInWei,
-        duration
-      );
-      
-      // Send transaction
-      const tx = await this.contract.addPolicy(
-        name,
-        description,
-        premiumInWei,
-        coverageInWei,
+        premium: premiumInEth,
+        coverageAmount: coverageAmountInEth,
         duration,
-        { gasLimit: gasEstimate * 120n / 100n }
-      );
-
-      // Wait for confirmation
-      const receipt = await tx.wait();
-
-      return { success: true, txHash: receipt.hash };
+        active: true
+      });
+      
+      // Generate mock transaction hash
+      const mockTxHash = '0x' + Math.random().toString(16).substr(2, 64);
+      
+      return { success: true, txHash: mockTxHash };
     } catch (error: any) {
       console.error('Failed to add policy:', error);
       throw new Error(error.reason || error.message || 'Transaction failed');
@@ -236,36 +241,36 @@ export class Web3Service {
     status: 'Approved' | 'Rejected', 
     adminNotes: string
   ): Promise<{ success: boolean; txHash?: string }> {
-    if (!this.contract || !this.signer || !this.currentUser?.isOwner) {
+    if (!this.signer || !this.currentUser?.isOwner) {
       throw new Error('Admin access required');
     }
 
     try {
-      const statusCode = status === 'Approved' ? 1 : 2; // 0: Pending, 1: Approved, 2: Rejected
+      // Simulate transaction delay
+      await new Promise(resolve => setTimeout(resolve, 2000));
       
-      // Estimate gas
-      const gasEstimate = await this.contract.processClaim.estimateGas(
-        claimId,
-        statusCode,
-        adminNotes
-      );
+      // Process claim in mock data store
+      const success = mockDataStore.processClaim(claimId, status, adminNotes);
+      if (!success) {
+        throw new Error('Failed to process claim');
+      }
       
-      // Send transaction
-      const tx = await this.contract.processClaim(
-        claimId,
-        statusCode,
-        adminNotes,
-        { gasLimit: gasEstimate * 120n / 100n }
-      );
-
-      // Wait for confirmation
-      const receipt = await tx.wait();
-
-      // If approved, the contract will automatically transfer funds to the claimant
-      // Update admin balance
-      await this.updateUserBalance();
-
-      return { success: true, txHash: receipt.hash };
+      // If approved, simulate fund transfer by reducing admin balance
+      if (status === 'Approved') {
+        const claims = mockDataStore.getAllClaims();
+        const claim = claims.find(c => c.claimId === claimId);
+        if (claim) {
+          const currentBalance = parseFloat(this.currentUser.balance);
+          const claimAmount = parseFloat(claim.requestedAmount);
+          this.currentUser.balance = Math.max(0, currentBalance - claimAmount).toFixed(4);
+          mockDataStore.setUser(this.currentUser.address, this.currentUser);
+        }
+      }
+      
+      // Generate mock transaction hash
+      const mockTxHash = '0x' + Math.random().toString(16).substr(2, 64);
+      
+      return { success: true, txHash: mockTxHash };
     } catch (error: any) {
       console.error('Failed to process claim:', error);
       throw new Error(error.reason || error.message || 'Transaction failed');
@@ -283,6 +288,27 @@ export class Web3Service {
       throw new Error('Provider not available');
     }
     return await this.provider.getTransactionReceipt(txHash);
+  }
+
+  // Mock data methods for MVP
+  getAllPoliciesFromStore(): Policy[] {
+    return mockDataStore.getAllPolicies();
+  }
+
+  getUserPoliciesFromStore(userAddress: string): UserPolicy[] {
+    return mockDataStore.getUserPolicies(userAddress);
+  }
+
+  getUserClaimsFromStore(userAddress: string): Claim[] {
+    return mockDataStore.getUserClaims(userAddress);
+  }
+
+  getAllClaimsFromStore(): Claim[] {
+    return mockDataStore.getAllClaims();
+  }
+
+  getAllUserPoliciesFromStore(): { userAddress: string; policies: UserPolicy[] }[] {
+    return mockDataStore.getAllUserPolicies();
   }
 }
 

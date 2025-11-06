@@ -1,17 +1,20 @@
 import React, { useEffect } from 'react';
 import { Settings, Plus, FileText, BarChart3 } from 'lucide-react';
-import { useBlockchain, usePolicies, useClaims } from '../hooks/useBlockchain';
+import { useBlockchain, usePolicies, useClaims, useAdminData } from '../hooks/useBlockchain';
 import AddPolicyForm from '../components/Admin/AddPolicyForm';
 import ClaimsManagement from '../components/Admin/ClaimsManagement';
+import UserPoliciesView from '../components/Admin/UserPoliciesView';
 
 const AdminPage: React.FC = () => {
   const { user } = useBlockchain();
   const { policies, fetchPolicies } = usePolicies();
   const { claims, fetchAllClaims } = useClaims();
+  const { allUserPolicies, fetchAllUserPolicies } = useAdminData();
 
   useEffect(() => {
     if (user?.isOwner) {
       fetchAllClaims();
+      fetchAllUserPolicies();
     }
   }, [user]);
 
@@ -41,15 +44,15 @@ const AdminPage: React.FC = () => {
       bgColor: 'bg-green-100'
     },
     { 
-      name: 'Pending Claims', 
-      value: claims.filter(c => c.status === 'Pending').length, 
+      name: 'Policies Sold', 
+      value: totalPoliciesSold, 
       icon: BarChart3, 
       color: 'text-yellow-600',
       bgColor: 'bg-yellow-100'
     },
     { 
       name: 'Total Revenue', 
-      value: `${policies.reduce((sum, p) => sum + parseFloat(p.premium), 0).toFixed(2)} ETH`, 
+      value: `${totalRevenue.toFixed(2)} ETH`, 
       icon: Settings, 
       color: 'text-purple-600',
       bgColor: 'bg-purple-100'
@@ -57,13 +60,25 @@ const AdminPage: React.FC = () => {
   ];
 
   const handlePolicyAdded = () => {
-    fetchPolicies();
+    handlePolicyUpdate();
   };
 
   const handleClaimUpdate = () => {
     fetchAllClaims();
   };
 
+  const handlePolicyUpdate = () => {
+    fetchPolicies();
+    fetchAllUserPolicies();
+  };
+
+  const totalPoliciesSold = allUserPolicies.reduce((total, userPolicies) => 
+    total + userPolicies.policies.length, 0
+  );
+
+  const totalRevenue = allUserPolicies.reduce((total, userPolicies) => 
+    total + userPolicies.policies.reduce((sum, policy) => sum + parseFloat(policy.premium), 0), 0
+  );
   return (
     <div className="space-y-8">
       {/* Header */}
@@ -94,6 +109,12 @@ const AdminPage: React.FC = () => {
 
       {/* Add New Policy */}
       <AddPolicyForm onSuccess={handlePolicyAdded} />
+
+      {/* User Policies Overview */}
+      <UserPoliciesView 
+        allUserPolicies={allUserPolicies} 
+        loading={false}
+      />
 
       {/* Claims Management */}
       <ClaimsManagement 

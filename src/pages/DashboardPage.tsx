@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { User, Shield, FileText, Calendar } from 'lucide-react';
-import { useUserPolicies, useClaims } from '../hooks/useBlockchain';
+import { useUserPolicies, useClaims, useBlockchain } from '../hooks/useBlockchain';
 import { formatDistanceToNow } from 'date-fns';
 import StatusBadge from '../components/UI/StatusBadge';
 import ClaimForm from '../components/Claims/ClaimForm';
@@ -8,15 +8,23 @@ import ClaimsList from '../components/Claims/ClaimsList';
 import LoadingSpinner from '../components/UI/LoadingSpinner';
 
 const DashboardPage: React.FC = () => {
+  const { connected } = useBlockchain();
   const { userPolicies, loading: policiesLoading, fetchUserPolicies } = useUserPolicies();
   const { userClaims, loading: claimsLoading, fetchUserClaims } = useClaims();
 
   useEffect(() => {
-    fetchUserClaims();
-  }, []);
+    if (connected) {
+      fetchUserClaims();
+      fetchUserPolicies();
+    }
+  }, [connected]);
 
   const handleClaimSubmitSuccess = () => {
     fetchUserClaims();
+  };
+
+  const handlePolicyPurchaseSuccess = () => {
+    fetchUserPolicies();
   };
 
   const activePolicies = userPolicies.filter(policy => 
@@ -66,6 +74,19 @@ const DashboardPage: React.FC = () => {
         <p className="text-gray-600">Manage your insurance policies and claims</p>
       </div>
 
+      {!connected && (
+        <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded-md">
+          <div className="flex">
+            <div className="ml-3">
+              <h3 className="text-sm font-medium text-yellow-800">Wallet Not Connected</h3>
+              <p className="text-sm text-yellow-700 mt-1">
+                Please connect your wallet to view your policies and claims.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {stats.map((stat) => {
@@ -113,10 +134,19 @@ const DashboardPage: React.FC = () => {
                     <StatusBadge status="Active" size="sm" />
                   </div>
                   <p className="text-sm text-gray-600 mb-3">{policy.description}</p>
-                  <div className="grid grid-cols-2 gap-4 text-sm text-gray-600">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-600">
+                    <div>
+                      <span className="font-medium">Premium Paid:</span> {policy.premium} ETH
+                    </div>
                     <div>
                       <span className="font-medium">Coverage:</span> {policy.coverageAmount} ETH
                     </div>
+                    <div>
+                      <span className="font-medium">Purchased:</span>{' '}
+                      {formatDistanceToNow(new Date(policy.purchasedAt), { addSuffix: true })}
+                    </div>
+                  </div>
+                  <div className="mt-2 text-sm text-gray-600">
                     <div>
                       <span className="font-medium">Expires:</span>{' '}
                       {formatDistanceToNow(new Date(policy.expiresAt), { addSuffix: true })}
@@ -143,18 +173,22 @@ const DashboardPage: React.FC = () => {
         </div>
 
         {/* Submit New Claim */}
-        <ClaimForm 
-          userPolicies={activePolicies} 
-          onSubmitSuccess={handleClaimSubmitSuccess}
-        />
+        {connected && (
+          <ClaimForm 
+            userPolicies={activePolicies} 
+            onSubmitSuccess={handleClaimSubmitSuccess}
+          />
+        )}
       </div>
 
       {/* My Claims */}
-      <ClaimsList 
-        claims={userClaims} 
-        loading={claimsLoading} 
-        title="My Claims"
-      />
+      {connected && (
+        <ClaimsList 
+          claims={userClaims} 
+          loading={claimsLoading} 
+          title="My Claims"
+        />
+      )}
     </div>
   );
 };
