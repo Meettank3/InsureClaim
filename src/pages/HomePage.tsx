@@ -4,8 +4,12 @@ import { usePolicies, useBlockchain } from '../hooks/useBlockchain';
 import PolicyList from '../components/Policies/PolicyList';
 
 const HomePage: React.FC = () => {
-  const { policies, loading, error } = usePolicies();
+  const { policies, loading, error, fetchPolicies } = usePolicies();
   const { connected } = useBlockchain();
+
+  const handlePolicyPurchaseSuccess = () => {
+    fetchPolicies();
+  };
 
   const stats = [
     { name: 'Active Policies', value: policies.length, icon: Shield, color: 'text-blue-600' },
@@ -75,7 +79,7 @@ const HomePage: React.FC = () => {
           </p>
         </div>
         
-        <PolicyList policies={policies} loading={loading} />
+        <PolicyList policies={policies} loading={loading} onPurchaseSuccess={handlePolicyPurchaseSuccess} />
         
         {error && (
           <div className="bg-red-50 border-l-4 border-red-400 p-4 rounded-md">
