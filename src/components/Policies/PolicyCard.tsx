@@ -29,7 +29,6 @@ const PolicyCard: React.FC<PolicyCardProps> = ({ policy, onPurchaseSuccess }) =>
         setTxHash(result.txHash || null);
         onPurchaseSuccess?.();
         await updateBalance(); // Update user balance after purchase
-        alert(`Policy purchased successfully! ${result.txHash ? `Transaction: ${result.txHash}` : ''}`);
       } else {
         alert('Failed to purchase policy. Please try again.');
       }

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Web3Service, web3Service } from '../services/web3Service';
+import { mockDataStore } from '../services/mockData';
 import { User, Policy, Claim, UserPolicy } from '../types';
 
 export const useBlockchain = () => {
@@ -52,12 +53,9 @@ export const useBlockchain = () => {
       const updatedUser = { ...user, isOwner: !user.isOwner };
       setUser(updatedUser);
       web3Service.setCurrentUser(updatedUser);
-      // Force refresh of user policies when role changes
-      if (window.location.pathname === '/dashboard') {
-        window.location.reload();
-      }
     }
   };
+
   useEffect(() => {
     // Check if already connected
     const currentUser = web3Service.getCurrentUser();
@@ -278,10 +276,6 @@ export const useUserPolicies = () => {
     }
   };
 
-  useEffect(() => {
-    fetchUserPolicies();
-  }, []);
-
   return {
     userPolicies,
     loading,
@@ -309,14 +303,10 @@ export const useAdminData = () => {
     }
   };
 
-  useEffect(() => {
-    fetchAllUserPolicies();
-  }, []);
-
   return {
     allUserPolicies,
     loading,
     error,
-    fetchAllUserPolicies,
+    fetchAllUserPolicies
   };
 };

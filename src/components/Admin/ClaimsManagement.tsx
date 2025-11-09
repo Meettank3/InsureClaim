@@ -47,7 +47,6 @@ const ClaimsManagement: React.FC<ClaimsManagementProps> = ({ claims, loading, on
 
       if (result.success) {
         setTxHash(result.txHash || null);
-        alert(`Claim ${status.toLowerCase()} successfully! ${result.txHash ? `Transaction: ${result.txHash}` : ''}`);
         onUpdate();
         await updateBalance(); // Update admin balance after processing claim
         setShowModal(false);

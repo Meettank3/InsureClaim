@@ -48,7 +48,6 @@ const AddPolicyForm: React.FC<AddPolicyFormProps> = ({ onSuccess }) => {
 
       if (result.success) {
         setTxHash(result.txHash || null);
-        alert(`Policy added successfully! ${result.txHash ? `Transaction: ${result.txHash}` : ''}`);
         setFormData({
           name: '',
           description: '',

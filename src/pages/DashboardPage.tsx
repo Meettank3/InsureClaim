@@ -1,143 +1,194 @@
-import React, { useState } from 'react';
-import { useBlockchain } from '../hooks/useBlockchain';
+import React, { useState, useEffect } from 'react';
+import { Shield, FileText, Plus, AlertCircle } from 'lucide-react';
+import { useBlockchain, useUserPolicies, useClaims } from '../hooks/useBlockchain';
 import ClaimForm from '../components/Claims/ClaimForm';
-import { ClaimsList } from '../components/Claims/ClaimsList';
-import { PolicyList } from '../components/Policies/PolicyList';
-import { LoadingSpinner } from '../components/UI/LoadingSpinner';
-import { Shield, FileText, Plus } from 'lucide-react';
-import type { Policy, Claim } from '../types';
+import ClaimsList from '../components/Claims/ClaimsList';
+import LoadingSpinner from '../components/UI/LoadingSpinner';
+import StatusBadge from '../components/UI/StatusBadge';
+import { formatDistanceToNow } from 'date-fns';
 
-export const DashboardPage: React.FC = () => {
-  const { userPolicies, userClaims, submitClaim, isLoading } = useBlockchain();
+const DashboardPage: React.FC = () => {
+  const { user, connected } = useBlockchain();
+  const { userPolicies, loading: policiesLoading, fetchUserPolicies } = useUserPolicies();
+  const { userClaims, loading: claimsLoading, fetchUserClaims } = useClaims();
   const [showClaimForm, setShowClaimForm] = useState(false);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
-  const handleClaimSubmit = async (claimData: Omit<Claim, 'id' | 'status' | 'submissionDate'>) => {
-    try {
-      await submitClaim(claimData);
-      setShowClaimForm(false);
-    } catch (error) {
-      console.error('Failed to submit claim:', error);
+  // Fetch user data when component mounts or user changes
+  useEffect(() => {
+    if (connected && user) {
+      fetchUserPolicies();
+      fetchUserClaims();
     }
+  }, [connected, user, refreshTrigger]);
+
+  const handleClaimSubmitSuccess = () => {
+    setShowClaimForm(false);
+    setRefreshTrigger(prev => prev + 1);
   };
 
-  if (isLoading) {
+  const handlePolicyPurchaseSuccess = () => {
+    setRefreshTrigger(prev => prev + 1);
+  };
+
+  if (!connected) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <LoadingSpinner />
+      <div className="text-center py-12">
+        <AlertCircle className="h-12 w-12 text-yellow-400 mx-auto mb-4" />
+        <h2 className="text-2xl font-bold text-gray-900 mb-2">Wallet Not Connected</h2>
+        <p className="text-gray-600">Please connect your wallet to view your dashboard.</p>
       </div>
     );
   }
 
+  const activePolicies = userPolicies.filter(policy => new Date(policy.expiresAt) > new Date());
+  const pendingClaims = userClaims.filter(claim => claim.status === 'Pending');
+  const approvedClaims = userClaims.filter(claim => claim.status === 'Approved');
+
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Dashboard</h1>
+    <div className="space-y-8">
+      {/* Header */}
+      <div>
+        <h1 className="text-3xl font-bold text-gray-900 mb-2">My Dashboard</h1>
         <p className="text-gray-600">Manage your insurance policies and claims</p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Policies Section */}
+      {/* Summary Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <div className="bg-white rounded-lg shadow-md p-6">
-          <div className="flex items-center mb-6">
-            <Shield className="w-6 h-6 text-blue-600 mr-2" />
-            <h2 className="text-xl font-semibold text-gray-900">My Policies</h2>
-          </div>
-          
-          {userPolicies.length > 0 ? (
-            <PolicyList policies={userPolicies} />
-          ) : (
-            <div className="text-center py-8">
-              <Shield className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-500">No policies found</p>
-              <p className="text-sm text-gray-400 mt-1">
-                Visit the home page to purchase insurance policies
-              </p>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600 mb-1">Active Policies</p>
+              <p className="text-2xl font-bold text-gray-900">{activePolicies.length}</p>
             </div>
-          )}
+            <Shield className="h-8 w-8 text-blue-600" />
+          </div>
         </div>
 
-        {/* Claims Section */}
         <div className="bg-white rounded-lg shadow-md p-6">
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center">
-              <FileText className="w-6 h-6 text-green-600 mr-2" />
-              <h2 className="text-xl font-semibold text-gray-900">My Claims</h2>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600 mb-1">Total Claims</p>
+              <p className="text-2xl font-bold text-gray-900">{userClaims.length}</p>
             </div>
-            {userPolicies.length > 0 && (
-              <button
-                onClick={() => setShowClaimForm(!showClaimForm)}
-                className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                New Claim
-              </button>
-            )}
+            <FileText className="h-8 w-8 text-green-600" />
           </div>
+        </div>
 
-          {showClaimForm && (
-            <div className="mb-6">
-              <ClaimForm
-                policies={userPolicies}
-                onSubmit={handleClaimSubmit}
-                onCancel={() => setShowClaimForm(false)}
-              />
+        <div className="bg-white rounded-lg shadow-md p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600 mb-1">Pending Claims</p>
+              <p className="text-2xl font-bold text-gray-900">{pendingClaims.length}</p>
             </div>
-          )}
+            <FileText className="h-8 w-8 text-yellow-600" />
+          </div>
+        </div>
 
-          {userClaims.length > 0 ? (
-            <ClaimsList claims={userClaims} />
-          ) : (
-            <div className="text-center py-8">
-              <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-500">No claims submitted</p>
-              {userPolicies.length > 0 ? (
-                <p className="text-sm text-gray-400 mt-1">
-                  Click "New Claim" to submit your first claim
-                </p>
-              ) : (
-                <p className="text-sm text-gray-400 mt-1">
-                  Purchase a policy first to submit claims
-                </p>
-              )}
+        <div className="bg-white rounded-lg shadow-md p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600 mb-1">Approved Claims</p>
+              <p className="text-2xl font-bold text-gray-900">{approvedClaims.length}</p>
             </div>
-          )}
+            <FileText className="h-8 w-8 text-green-600" />
+          </div>
         </div>
       </div>
 
-      {/* Summary Stats */}
-      <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-blue-50 rounded-lg p-6">
-          <div className="flex items-center">
-            <Shield className="w-8 h-8 text-blue-600" />
-            <div className="ml-4">
-              <p className="text-sm font-medium text-blue-600">Active Policies</p>
-              <p className="text-2xl font-bold text-blue-900">{userPolicies.length}</p>
-            </div>
-          </div>
+      {/* My Policies Section */}
+      <div className="bg-white rounded-lg shadow-md p-6">
+        <div className="flex items-center mb-6">
+          <Shield className="h-8 w-8 text-blue-600 mr-3" />
+          <h2 className="text-2xl font-bold text-gray-900">My Policies</h2>
         </div>
 
-        <div className="bg-green-50 rounded-lg p-6">
-          <div className="flex items-center">
-            <FileText className="w-8 h-8 text-green-600" />
-            <div className="ml-4">
-              <p className="text-sm font-medium text-green-600">Total Claims</p>
-              <p className="text-2xl font-bold text-green-900">{userClaims.length}</p>
-            </div>
+        {policiesLoading ? (
+          <div className="flex justify-center items-center py-8">
+            <LoadingSpinner size="lg" />
           </div>
+        ) : userPolicies.length === 0 ? (
+          <div className="text-center py-8">
+            <Shield className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">No Policies Found</h3>
+            <p className="text-gray-600">Visit the home page to purchase insurance policies.</p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {userPolicies.map((policy) => {
+              const isActive = new Date(policy.expiresAt) > new Date();
+              return (
+                <div key={policy.policyId} className="border border-gray-200 rounded-lg p-4">
+                  <div className="flex items-start justify-between mb-3">
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900">{policy.name}</h3>
+                      <p className="text-sm text-gray-600">Policy ID: {policy.policyId}</p>
+                    </div>
+                    <StatusBadge status={isActive ? 'Active' : 'Expired'} />
+                  </div>
+
+                  <p className="text-gray-700 mb-3">{policy.description}</p>
+
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-sm text-gray-600">
+                    <div>
+                      <span className="font-medium">Premium:</span> {policy.premium} ETH
+                    </div>
+                    <div>
+                      <span className="font-medium">Coverage:</span> {policy.coverageAmount} ETH
+                    </div>
+                    <div>
+                      <span className="font-medium">Purchased:</span>{' '}
+                      {formatDistanceToNow(new Date(policy.purchasedAt), { addSuffix: true })}
+                    </div>
+                    <div>
+                      <span className="font-medium">
+                        {isActive ? 'Expires' : 'Expired'}:
+                      </span>{' '}
+                      {formatDistanceToNow(new Date(policy.expiresAt), { addSuffix: true })}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Claims Section */}
+      <div className="bg-white rounded-lg shadow-md p-6">
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center">
+            <FileText className="h-8 w-8 text-blue-600 mr-3" />
+            <h2 className="text-2xl font-bold text-gray-900">My Claims</h2>
+          </div>
+          {activePolicies.length > 0 && (
+            <button
+              onClick={() => setShowClaimForm(!showClaimForm)}
+              className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              {showClaimForm ? 'Cancel' : 'Submit New Claim'}
+            </button>
+          )}
         </div>
 
-        <div className="bg-yellow-50 rounded-lg p-6">
-          <div className="flex items-center">
-            <FileText className="w-8 h-8 text-yellow-600" />
-            <div className="ml-4">
-              <p className="text-sm font-medium text-yellow-600">Pending Claims</p>
-              <p className="text-2xl font-bold text-yellow-900">
-                {userClaims.filter(claim => claim.status === 'pending').length}
-              </p>
-            </div>
+        {showClaimForm && (
+          <div className="mb-6">
+            <ClaimForm
+              userPolicies={activePolicies}
+              onSubmitSuccess={handleClaimSubmitSuccess}
+            />
           </div>
-        </div>
+        )}
+
+        <ClaimsList
+          claims={userClaims}
+          loading={claimsLoading}
+          title="My Claims History"
+        />
       </div>
     </div>
   );
 };
+
+export default DashboardPage;

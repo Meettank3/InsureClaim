@@ -44,6 +44,11 @@ const ClaimForm: React.FC<ClaimFormProps> = ({ userPolicies, onSubmitSuccess }) 
       return;
     }
 
+    if (parseFloat(requestedAmount) <= 0) {
+      alert('Requested amount must be greater than 0');
+      return;
+    }
+
     setSubmitting(true);
     setTxHash(null);
     try {
@@ -56,7 +61,6 @@ const ClaimForm: React.FC<ClaimFormProps> = ({ userPolicies, onSubmitSuccess }) 
 
       if (result.success) {
         setTxHash(result.txHash || null);
-        alert(`Claim submitted successfully! ${result.txHash ? `Transaction: ${result.txHash}` : ''}`);
         setSelectedPolicyId('');
         setReason('');
         setDescription('');
