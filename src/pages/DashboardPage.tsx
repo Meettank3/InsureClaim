@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useBlockchain } from '../hooks/useBlockchain';
-import { ClaimForm } from '../components/Claims/ClaimForm';
+import ClaimForm from '../components/Claims/ClaimForm';
 import { ClaimsList } from '../components/Claims/ClaimsList';
 import { PolicyList } from '../components/Policies/PolicyList';
 import { LoadingSpinner } from '../components/UI/LoadingSpinner';
