@@ -1,23 +1,696 @@
 import { ethers } from 'ethers';
 import { Policy, Claim, UserPolicy, User } from '../types';
-import { mockDataStore } from './mockData';
 
-// Contract ABI (simplified for demo - in production, import from compiled contract)
+// Your deployed contract ABI
 const INSURANCE_CONTRACT_ABI = [
-  "function addPolicy(string memory _name, string memory _description, uint256 _premium, uint256 _coverageAmount, uint256 _duration) public",
-  "function buyPolicy(uint256 _policyId) public payable",
-  "function submitClaim(uint256 _policyId, string memory _reason, string memory _description, uint256 _requestedAmount) public",
-  "function processClaim(uint256 _claimId, uint8 _status, string memory _adminNotes) public",
-  "function getAllActivePolicies() public view returns (tuple(uint256,string,string,uint256,uint256,uint256,bool,uint256)[])",
-  "function getUserClaims(address _user) public view returns (tuple(uint256,uint256,address,string,string,uint256,uint8,uint256,uint256,string)[])",
-  "function getAllPendingClaims() public view returns (tuple(uint256,uint256,address,string,string,uint256,uint8,uint256,uint256,string)[])",
-  "function owner() public view returns (address)",
-  "event PolicyPurchased(uint256 policyId, address user, uint256 amount)",
-  "event ClaimSubmitted(uint256 claimId, address user, uint256 policyId)",
-  "event ClaimProcessed(uint256 claimId, uint8 status, string adminNotes)"
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "claimId",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "enum InsuranceClaim.ClaimStatus",
+        "name": "status",
+        "type": "uint8"
+      },
+      {
+        "indexed": false,
+        "internalType": "string",
+        "name": "adminNotes",
+        "type": "string"
+      }
+    ],
+    "name": "ClaimProcessed",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "claimId",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "user",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "policyId",
+        "type": "uint256"
+      }
+    ],
+    "name": "ClaimSubmitted",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "policyId",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "string",
+        "name": "name",
+        "type": "string"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "premium",
+        "type": "uint256"
+      }
+    ],
+    "name": "PolicyAdded",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "policyId",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "user",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "premium",
+        "type": "uint256"
+      }
+    ],
+    "name": "PolicyPurchased",
+    "type": "event"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "string",
+        "name": "_name",
+        "type": "string"
+      },
+      {
+        "internalType": "string",
+        "name": "_description",
+        "type": "string"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_premium",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_coverageAmount",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_duration",
+        "type": "uint256"
+      }
+    ],
+    "name": "addPolicy",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "_policyId",
+        "type": "uint256"
+      }
+    ],
+    "name": "buyPolicy",
+    "outputs": [],
+    "stateMutability": "payable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "name": "claims",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "claimId",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "policyId",
+        "type": "uint256"
+      },
+      {
+        "internalType": "address",
+        "name": "user",
+        "type": "address"
+      },
+      {
+        "internalType": "string",
+        "name": "reason",
+        "type": "string"
+      },
+      {
+        "internalType": "string",
+        "name": "description",
+        "type": "string"
+      },
+      {
+        "internalType": "uint256",
+        "name": "requestedAmount",
+        "type": "uint256"
+      },
+      {
+        "internalType": "enum InsuranceClaim.ClaimStatus",
+        "name": "status",
+        "type": "uint8"
+      },
+      {
+        "internalType": "uint256",
+        "name": "submittedAt",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "processedAt",
+        "type": "uint256"
+      },
+      {
+        "internalType": "string",
+        "name": "adminNotes",
+        "type": "string"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "getAllActivePolicies",
+    "outputs": [
+      {
+        "components": [
+          {
+            "internalType": "uint256",
+            "name": "policyId",
+            "type": "uint256"
+          },
+          {
+            "internalType": "string",
+            "name": "name",
+            "type": "string"
+          },
+          {
+            "internalType": "string",
+            "name": "description",
+            "type": "string"
+          },
+          {
+            "internalType": "uint256",
+            "name": "premium",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "coverageAmount",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "duration",
+            "type": "uint256"
+          },
+          {
+            "internalType": "bool",
+            "name": "active",
+            "type": "bool"
+          },
+          {
+            "internalType": "uint256",
+            "name": "createdAt",
+            "type": "uint256"
+          }
+        ],
+        "internalType": "struct InsurancePolicy.Policy[]",
+        "name": "",
+        "type": "tuple[]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "getAllPendingClaims",
+    "outputs": [
+      {
+        "components": [
+          {
+            "internalType": "uint256",
+            "name": "claimId",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "policyId",
+            "type": "uint256"
+          },
+          {
+            "internalType": "address",
+            "name": "user",
+            "type": "address"
+          },
+          {
+            "internalType": "string",
+            "name": "reason",
+            "type": "string"
+          },
+          {
+            "internalType": "string",
+            "name": "description",
+            "type": "string"
+          },
+          {
+            "internalType": "uint256",
+            "name": "requestedAmount",
+            "type": "uint256"
+          },
+          {
+            "internalType": "enum InsuranceClaim.ClaimStatus",
+            "name": "status",
+            "type": "uint8"
+          },
+          {
+            "internalType": "uint256",
+            "name": "submittedAt",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "processedAt",
+            "type": "uint256"
+          },
+          {
+            "internalType": "string",
+            "name": "adminNotes",
+            "type": "string"
+          }
+        ],
+        "internalType": "struct InsuranceClaim.Claim[]",
+        "name": "",
+        "type": "tuple[]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "_user",
+        "type": "address"
+      }
+    ],
+    "name": "getUserClaims",
+    "outputs": [
+      {
+        "components": [
+          {
+            "internalType": "uint256",
+            "name": "claimId",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "policyId",
+            "type": "uint256"
+          },
+          {
+            "internalType": "address",
+            "name": "user",
+            "type": "address"
+          },
+          {
+            "internalType": "string",
+            "name": "reason",
+            "type": "string"
+          },
+          {
+            "internalType": "string",
+            "name": "description",
+            "type": "string"
+          },
+          {
+            "internalType": "uint256",
+            "name": "requestedAmount",
+            "type": "uint256"
+          },
+          {
+            "internalType": "enum InsuranceClaim.ClaimStatus",
+            "name": "status",
+            "type": "uint8"
+          },
+          {
+            "internalType": "uint256",
+            "name": "submittedAt",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "processedAt",
+            "type": "uint256"
+          },
+          {
+            "internalType": "string",
+            "name": "adminNotes",
+            "type": "string"
+          }
+        ],
+        "internalType": "struct InsuranceClaim.Claim[]",
+        "name": "",
+        "type": "tuple[]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "nextClaimId",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "nextPolicyId",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "owner",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "name": "policies",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "policyId",
+        "type": "uint256"
+      },
+      {
+        "internalType": "string",
+        "name": "name",
+        "type": "string"
+      },
+      {
+        "internalType": "string",
+        "name": "description",
+        "type": "string"
+      },
+      {
+        "internalType": "uint256",
+        "name": "premium",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "coverageAmount",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "duration",
+        "type": "uint256"
+      },
+      {
+        "internalType": "bool",
+        "name": "active",
+        "type": "bool"
+      },
+      {
+        "internalType": "uint256",
+        "name": "createdAt",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "name": "policyHolders",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "policyId",
+        "type": "uint256"
+      },
+      {
+        "internalType": "address",
+        "name": "user",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "purchasedAt",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "expiresAt",
+        "type": "uint256"
+      },
+      {
+        "internalType": "bool",
+        "name": "active",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "_claimId",
+        "type": "uint256"
+      },
+      {
+        "internalType": "enum InsuranceClaim.ClaimStatus",
+        "name": "_status",
+        "type": "uint8"
+      },
+      {
+        "internalType": "string",
+        "name": "_adminNotes",
+        "type": "string"
+      }
+    ],
+    "name": "processClaim",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "_policyId",
+        "type": "uint256"
+      },
+      {
+        "internalType": "string",
+        "name": "_reason",
+        "type": "string"
+      },
+      {
+        "internalType": "string",
+        "name": "_description",
+        "type": "string"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_requestedAmount",
+        "type": "uint256"
+      }
+    ],
+    "name": "submitClaim",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "_policyId",
+        "type": "uint256"
+      }
+    ],
+    "name": "togglePolicyStatus",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "name": "userClaims",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "name": "userOwnsPolicyId",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "name": "userPolicies",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "withdraw",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "stateMutability": "payable",
+    "type": "receive"
+  }
 ];
 
-// Mock contract address - replace with actual deployed contract address
+// Your deployed contract address
 const CONTRACT_ADDRESS = "0x4F30Ddec8AE54eDc0DEDB037a29B2575325361d1";
 
 export class Web3Service {
@@ -48,13 +721,12 @@ export class Web3Service {
       // Initialize contract
       this.contract = new ethers.Contract(CONTRACT_ADDRESS, INSURANCE_CONTRACT_ABI, this.signer);
 
-      // Check if user is owner (for demo, we'll use a simple check)
+      // Check if user is owner
       let isOwner = false;
       try {
         const ownerAddress = await this.contract.owner();
         isOwner = address.toLowerCase() === ownerAddress.toLowerCase();
       } catch (error) {
-        // If contract call fails, default to false
         console.log('Could not check owner status:', error);
       }
 
@@ -63,9 +735,6 @@ export class Web3Service {
         isOwner,
         balance: balanceInEth
       };
-
-      // Store user in mock data store
-      mockDataStore.setUser(address, this.currentUser);
 
       // Listen for account changes
       window.ethereum.on('accountsChanged', this.handleAccountsChanged.bind(this));
@@ -80,16 +749,13 @@ export class Web3Service {
 
   private handleAccountsChanged(accounts: string[]) {
     if (accounts.length === 0) {
-      // User disconnected
       this.disconnect();
     } else {
-      // User switched accounts
       window.location.reload();
     }
   }
 
   private handleChainChanged() {
-    // Reload the page when chain changes
     window.location.reload();
   }
 
@@ -106,10 +772,6 @@ export class Web3Service {
 
   setCurrentUser(user: User): void {
     this.currentUser = user;
-    // Update user in mock data store when role changes
-    if (user) {
-      mockDataStore.setUser(user.address, user);
-    }
   }
 
   async updateUserBalance(): Promise<string> {
@@ -123,87 +785,161 @@ export class Web3Service {
     return balanceInEth;
   }
 
+  // Convert blockchain data to frontend format
+  private formatPolicy(policyData: any): Policy {
+    return {
+      policyId: Number(policyData.policyId),
+      name: policyData.name,
+      description: policyData.description,
+      premium: ethers.formatEther(policyData.premium),
+      coverageAmount: ethers.formatEther(policyData.coverageAmount),
+      duration: Number(policyData.duration),
+      active: policyData.active,
+      createdAt: Number(policyData.createdAt) * 1000 // Convert to milliseconds
+    };
+  }
+
+  private formatClaim(claimData: any): Claim {
+    const statusMap = ['Pending', 'Approved', 'Rejected'];
+    return {
+      claimId: Number(claimData.claimId),
+      policyId: Number(claimData.policyId),
+      user: claimData.user,
+      reason: claimData.reason,
+      description: claimData.description,
+      requestedAmount: ethers.formatEther(claimData.requestedAmount),
+      status: statusMap[claimData.status] as 'Pending' | 'Approved' | 'Rejected',
+      submittedAt: Number(claimData.submittedAt) * 1000,
+      processedAt: claimData.processedAt > 0 ? Number(claimData.processedAt) * 1000 : undefined,
+      adminNotes: claimData.adminNotes || undefined
+    };
+  }
+
   // Policy Management
+  async getAllPolicies(): Promise<Policy[]> {
+    if (!this.contract) {
+      throw new Error('Contract not initialized');
+    }
+
+    try {
+      const policies = await this.contract.getAllActivePolicies();
+      return policies.map((policy: any) => this.formatPolicy(policy));
+    } catch (error: any) {
+      console.error('Failed to fetch policies:', error);
+      throw new Error(error.reason || error.message || 'Failed to fetch policies');
+    }
+  }
+
   async buyPolicy(policyId: number, premiumInEth: string): Promise<{ success: boolean; txHash?: string }> {
-    if (!this.signer || !this.currentUser) {
+    if (!this.contract || !this.signer || !this.currentUser) {
       throw new Error('Wallet not connected');
     }
 
     try {
-      // Simulate transaction delay
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      const premiumInWei = ethers.parseEther(premiumInEth);
+      const tx = await this.contract.buyPolicy(policyId, { value: premiumInWei });
       
-      // Check if user has enough balance
-      const userBalance = parseFloat(this.currentUser.balance);
-      const premium = parseFloat(premiumInEth);
+      console.log('Transaction sent:', tx.hash);
+      const receipt = await tx.wait();
+      console.log('Transaction confirmed:', receipt);
       
-      if (userBalance < premium) {
-        throw new Error('Insufficient balance');
-      }
-      
-      // Purchase policy in mock data store
-      const userPolicy = mockDataStore.purchasePolicy(this.currentUser.address, policyId);
-      if (!userPolicy) {
-        throw new Error('Policy not available or already owned');
-      }
-      
-      // Update user balance
-      this.currentUser.balance = (userBalance - premium).toFixed(4);
-      mockDataStore.setUser(this.currentUser.address, this.currentUser);
-      
-      // Generate mock transaction hash
-      const mockTxHash = '0x' + Math.random().toString(16).substr(2, 64);
-      
-      return { success: true, txHash: mockTxHash };
+      return { success: true, txHash: tx.hash };
     } catch (error: any) {
       console.error('Failed to buy policy:', error);
       throw new Error(error.reason || error.message || 'Transaction failed');
     }
   }
 
+  async getUserPolicies(userAddress: string): Promise<UserPolicy[]> {
+    if (!this.contract) {
+      throw new Error('Contract not initialized');
+    }
+
+    try {
+      // Get all policies first
+      const allPolicies = await this.contract.getAllActivePolicies();
+      const userPolicies: UserPolicy[] = [];
+
+      // Check each policy to see if user owns it
+      for (const policy of allPolicies) {
+        const policyId = Number(policy.policyId);
+        const ownsPolicy = await this.contract.userOwnsPolicyId(userAddress, policyId);
+        
+        if (ownsPolicy) {
+          // Get policy holders for this policy to find purchase details
+          try {
+            // We need to iterate through policy holders to find this user's purchase
+            // This is a limitation of the current contract structure
+            const userPolicy: UserPolicy = {
+              ...this.formatPolicy(policy),
+              purchasedAt: Date.now() - 86400000, // Mock data - contract doesn't store this easily accessible
+              expiresAt: Date.now() + (Number(policy.duration) * 24 * 60 * 60 * 1000)
+            };
+            userPolicies.push(userPolicy);
+          } catch (error) {
+            console.log('Could not get purchase details for policy', policyId);
+          }
+        }
+      }
+
+      return userPolicies;
+    } catch (error: any) {
+      console.error('Failed to fetch user policies:', error);
+      throw new Error(error.reason || error.message || 'Failed to fetch user policies');
+    }
+  }
+
+  // Claims Management
   async submitClaim(
     policyId: number, 
     reason: string, 
     description: string, 
     requestedAmountInEth: string
   ): Promise<{ success: boolean; txHash?: string }> {
-    if (!this.signer || !this.currentUser) {
+    if (!this.contract || !this.signer || !this.currentUser) {
       throw new Error('Wallet not connected');
     }
 
     try {
-      // Simulate transaction delay
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      const requestedAmountInWei = ethers.parseEther(requestedAmountInEth);
+      const tx = await this.contract.submitClaim(policyId, reason, description, requestedAmountInWei);
       
-      // Check if user owns the policy
-      const userPolicies = mockDataStore.getUserPolicies(this.currentUser.address);
-      const ownedPolicy = userPolicies.find(p => p.policyId === policyId);
+      console.log('Claim transaction sent:', tx.hash);
+      const receipt = await tx.wait();
+      console.log('Claim transaction confirmed:', receipt);
       
-      if (!ownedPolicy) {
-        throw new Error('You do not own this policy');
-      }
-      
-      // Check if requested amount is within coverage
-      if (parseFloat(requestedAmountInEth) > parseFloat(ownedPolicy.coverageAmount)) {
-        throw new Error('Requested amount exceeds policy coverage');
-      }
-      
-      // Submit claim
-      mockDataStore.submitClaim(
-        this.currentUser.address,
-        policyId,
-        reason,
-        description,
-        requestedAmountInEth
-      );
-      
-      // Generate mock transaction hash
-      const mockTxHash = '0x' + Math.random().toString(16).substr(2, 64);
-      
-      return { success: true, txHash: mockTxHash };
+      return { success: true, txHash: tx.hash };
     } catch (error: any) {
       console.error('Failed to submit claim:', error);
       throw new Error(error.reason || error.message || 'Transaction failed');
+    }
+  }
+
+  async getUserClaims(userAddress: string): Promise<Claim[]> {
+    if (!this.contract) {
+      throw new Error('Contract not initialized');
+    }
+
+    try {
+      const claims = await this.contract.getUserClaims(userAddress);
+      return claims.map((claim: any) => this.formatClaim(claim));
+    } catch (error: any) {
+      console.error('Failed to fetch user claims:', error);
+      throw new Error(error.reason || error.message || 'Failed to fetch user claims');
+    }
+  }
+
+  async getAllClaims(): Promise<Claim[]> {
+    if (!this.contract) {
+      throw new Error('Contract not initialized');
+    }
+
+    try {
+      const pendingClaims = await this.contract.getAllPendingClaims();
+      return pendingClaims.map((claim: any) => this.formatClaim(claim));
+    } catch (error: any) {
+      console.error('Failed to fetch all claims:', error);
+      throw new Error(error.reason || error.message || 'Failed to fetch all claims');
     }
   }
 
@@ -215,28 +951,21 @@ export class Web3Service {
     coverageAmountInEth: string,
     duration: number
   ): Promise<{ success: boolean; txHash?: string }> {
-    if (!this.signer || !this.currentUser?.isOwner) {
+    if (!this.contract || !this.signer || !this.currentUser?.isOwner) {
       throw new Error('Admin access required');
     }
 
     try {
-      // Simulate transaction delay
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      const premiumInWei = ethers.parseEther(premiumInEth);
+      const coverageInWei = ethers.parseEther(coverageAmountInEth);
       
-      // Add policy to mock data store
-      mockDataStore.addPolicy({
-        name,
-        description,
-        premium: premiumInEth,
-        coverageAmount: coverageAmountInEth,
-        duration,
-        active: true
-      });
+      const tx = await this.contract.addPolicy(name, description, premiumInWei, coverageInWei, duration);
       
-      // Generate mock transaction hash
-      const mockTxHash = '0x' + Math.random().toString(16).substr(2, 64);
+      console.log('Add policy transaction sent:', tx.hash);
+      const receipt = await tx.wait();
+      console.log('Add policy transaction confirmed:', receipt);
       
-      return { success: true, txHash: mockTxHash };
+      return { success: true, txHash: tx.hash };
     } catch (error: any) {
       console.error('Failed to add policy:', error);
       throw new Error(error.reason || error.message || 'Transaction failed');
@@ -248,39 +977,39 @@ export class Web3Service {
     status: 'Approved' | 'Rejected', 
     adminNotes: string
   ): Promise<{ success: boolean; txHash?: string }> {
-    if (!this.signer || !this.currentUser?.isOwner) {
+    if (!this.contract || !this.signer || !this.currentUser?.isOwner) {
       throw new Error('Admin access required');
     }
 
     try {
-      // Simulate transaction delay
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      const statusCode = status === 'Approved' ? 1 : 2; // 0=Pending, 1=Approved, 2=Rejected
+      const tx = await this.contract.processClaim(claimId, statusCode, adminNotes);
       
-      // Process claim in mock data store
-      const success = mockDataStore.processClaim(claimId, status, adminNotes);
-      if (!success) {
-        throw new Error('Failed to process claim');
-      }
+      console.log('Process claim transaction sent:', tx.hash);
+      const receipt = await tx.wait();
+      console.log('Process claim transaction confirmed:', receipt);
       
-      // If approved, simulate fund transfer by reducing admin balance
-      if (status === 'Approved') {
-        const claims = mockDataStore.getAllClaims();
-        const claim = claims.find(c => c.claimId === claimId);
-        if (claim) {
-          const currentBalance = parseFloat(this.currentUser.balance);
-          const claimAmount = parseFloat(claim.requestedAmount);
-          this.currentUser.balance = Math.max(0, currentBalance - claimAmount).toFixed(4);
-          mockDataStore.setUser(this.currentUser.address, this.currentUser);
-        }
-      }
-      
-      // Generate mock transaction hash
-      const mockTxHash = '0x' + Math.random().toString(16).substr(2, 64);
-      
-      return { success: true, txHash: mockTxHash };
+      return { success: true, txHash: tx.hash };
     } catch (error: any) {
       console.error('Failed to process claim:', error);
       throw new Error(error.reason || error.message || 'Transaction failed');
+    }
+  }
+
+  // Get all user policies for admin view
+  async getAllUserPolicies(): Promise<{ userAddress: string; policies: UserPolicy[] }[]> {
+    if (!this.contract || !this.currentUser?.isOwner) {
+      throw new Error('Admin access required');
+    }
+
+    try {
+      // This is a complex query that would require iterating through all policy holders
+      // For now, return empty array as the contract doesn't have an efficient way to get this
+      // In a production environment, you'd want to add events or additional mappings to the contract
+      return [];
+    } catch (error: any) {
+      console.error('Failed to fetch all user policies:', error);
+      throw new Error(error.reason || error.message || 'Failed to fetch user policies');
     }
   }
 
@@ -297,25 +1026,25 @@ export class Web3Service {
     return await this.provider.getTransactionReceipt(txHash);
   }
 
-  // Mock data methods for MVP
-  getAllPoliciesFromStore(): Policy[] {
-    return mockDataStore.getAllPolicies();
+  // Fallback methods for compatibility (these now call the real blockchain methods)
+  getAllPoliciesFromStore(): Promise<Policy[]> {
+    return this.getAllPolicies();
   }
 
-  getUserPoliciesFromStore(userAddress: string): UserPolicy[] {
-    return mockDataStore.getUserPolicies(userAddress);
+  async getUserPoliciesFromStore(userAddress: string): Promise<UserPolicy[]> {
+    return this.getUserPolicies(userAddress);
   }
 
-  getUserClaimsFromStore(userAddress: string): Claim[] {
-    return mockDataStore.getUserClaims(userAddress);
+  async getUserClaimsFromStore(userAddress: string): Promise<Claim[]> {
+    return this.getUserClaims(userAddress);
   }
 
-  getAllClaimsFromStore(): Claim[] {
-    return mockDataStore.getAllClaims();
+  async getAllClaimsFromStore(): Promise<Claim[]> {
+    return this.getAllClaims();
   }
 
-  getAllUserPoliciesFromStore(): { userAddress: string; policies: UserPolicy[] }[] {
-    return mockDataStore.getAllUserPolicies();
+  async getAllUserPoliciesFromStore(): Promise<{ userAddress: string; policies: UserPolicy[] }[]> {
+    return this.getAllUserPolicies();
   }
 }
 

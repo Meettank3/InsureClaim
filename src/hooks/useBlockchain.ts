@@ -88,7 +88,7 @@ export const usePolicies = () => {
     setLoading(true);
     setError(null);
     try {
-      const data = web3Service.getAllPoliciesFromStore();
+      const data = await web3Service.getAllPolicies();
       setPolicies(data);
     } catch (error) {
       console.error('Failed to fetch policies:', error);
@@ -174,7 +174,7 @@ export const useClaims = () => {
         setUserClaims([]);
         return;
       }
-      const data = web3Service.getUserClaimsFromStore(currentUser.address);
+      const data = await web3Service.getUserClaims(currentUser.address);
       setUserClaims(data);
     } catch (error) {
       console.error('Failed to fetch user claims:', error);
@@ -188,7 +188,7 @@ export const useClaims = () => {
     setLoading(true);
     setError(null);
     try {
-      const data = web3Service.getAllClaimsFromStore();
+      const data = await web3Service.getAllClaims();
       setClaims(data);
     } catch (error) {
       console.error('Failed to fetch all claims:', error);
@@ -266,7 +266,7 @@ export const useUserPolicies = () => {
         setUserPolicies([]);
         return;
       }
-      const data = web3Service.getUserPoliciesFromStore(currentUser.address);
+      const data = await web3Service.getUserPolicies(currentUser.address);
       setUserPolicies(data);
     } catch (error) {
       console.error('Failed to fetch user policies:', error);
@@ -293,7 +293,7 @@ export const useAdminData = () => {
     setLoading(true);
     setError(null);
     try {
-      const data = web3Service.getAllUserPoliciesFromStore();
+      const data = await web3Service.getAllUserPolicies();
       setAllUserPolicies(data);
     } catch (error) {
       console.error('Failed to fetch all user policies:', error);
