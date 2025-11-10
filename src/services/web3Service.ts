@@ -18,7 +18,7 @@ const INSURANCE_CONTRACT_ABI = [
 ];
 
 // Mock contract address - replace with actual deployed contract address
-const CONTRACT_ADDRESS = "0x1234567890123456789012345678901234567890";
+const CONTRACT_ADDRESS = "0x4F30Ddec8AE54eDc0DEDB037a29B2575325361d1";
 
 export class Web3Service {
   private provider: ethers.BrowserProvider | null = null;
